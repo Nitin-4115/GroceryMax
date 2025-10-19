@@ -1,0 +1,120 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}{{ super() }} - New Purchase Order{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <h1 class="text-3xl font-bold text-sky-700">New Purchase Order</h1>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div class="md:col-span-1 bg-white p-6 rounded-lg shadow-lg">
+        <h2 class="text-xl font-semibold mb-4 text-slate-700">Add Product to Order</h2>
+        <div class="space-y-4">
+            <div>
+                <label for="product_select" class="block text-sm font-medium text-slate-700">Product</label>
+                <select id="product_select" class="mt-1 block w-full px-3 py-2 border rounded-md">
+                    <option value="">-- Select Product --</option>
+                    {% for product in products %}
+                        <option value="{{ product.ProductID }}" data-name="{{ product.ProductName }}">{{ product.ProductName }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="quantity" class="block text-sm font-medium text-slate-700">Quantity</label>
+                <input type="number" id="quantity" min="1" value="1" class="mt-1 block w-full px-3 py-2 border rounded-md">
+            </div>
+            <button type="button" id="add-to-po-btn" class="w-full bg-sky-500 hover:bg-sky-600 text-white font-semibold py-2 px-4 rounded shadow">Add to Order</button>
+        </div>
+    </div>
+
+    <div class="md:col-span-2 bg-white p-6 rounded-lg shadow-lg">
+        <h2 class="text-xl font-semibold mb-4 text-slate-700">Current Order Items</h2>
+        <div id="po-items" class="mb-4 min-h-[100px]">
+            <p class="text-slate-500 italic">No items in order yet.</p>
+        </div>
+
+        <form id="finalize-po-form" method="POST" class="mt-6 space-y-4">
+            <input type="hidden" name="po_data" id="po_data_input">
+            <div>
+                <label for="supplier_select" class="block text-sm font-medium text-slate-700">Supplier <span class="text-red-500">*</span></label>
+                <select id="supplier_select" name="supplier_id" required class="mt-1 block w-full px-3 py-2 border rounded-md">
+                    <option value="">-- Select Supplier --</option>
+                    {% for supplier in suppliers %}
+                        <option value="{{ supplier.SupplierID }}">{{ supplier.SupplierName }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" id="finalize-po-btn" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded shadow">Submit Purchase Order</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const addBtn = document.getElementById('add-to-po-btn');
+    const productSelect = document.getElementById('product_select');
+    const quantityInput = document.getElementById('quantity');
+    const poItemsDiv = document.getElementById('po-items');
+    const poDataInput = document.getElementById('po_data_input');
+    const finalizeForm = document.getElementById('finalize-po-form');
+
+    let orderItems = [];
+
+    function renderOrder() {
+        if (orderItems.length === 0) {
+            poItemsDiv.innerHTML = '<p class="text-slate-500 italic">No items in order yet.</p>';
+        } else {
+            poItemsDiv.innerHTML = '<ul class="space-y-2"></ul>';
+            const ul = poItemsDiv.querySelector('ul');
+            orderItems.forEach((item, index) => {
+                const li = document.createElement('li');
+                li.className = 'flex justify-between items-center border-b pb-2';
+                li.innerHTML = `<span>${item.productName} - Qty: ${item.quantity}</span><button type="button" class="text-red-500 remove-item-btn" data-index="${index}">&times;</button>`;
+                ul.appendChild(li);
+            });
+        }
+    }
+
+    addBtn.addEventListener('click', function() {
+        const selectedOption = productSelect.options[productSelect.selectedIndex];
+        if (!selectedOption.value) { alert("Please select a product."); return; }
+        
+        const productId = parseInt(selectedOption.value);
+        const productName = selectedOption.dataset.name;
+        const quantity = parseInt(quantityInput.value);
+
+        const existingItem = orderItems.find(item => item.productId === productId);
+        if (existingItem) {
+            existingItem.quantity += quantity;
+        } else {
+            orderItems.push({ productId, productName, quantity });
+        }
+        renderOrder();
+        productSelect.value = '';
+        quantityInput.value = '1';
+    });
+    
+    poItemsDiv.addEventListener('click', function(e) {
+        if (e.target.classList.contains('remove-item-btn')) {
+            const index = e.target.dataset.index;
+            orderItems.splice(index, 1);
+            renderOrder();
+        }
+    });
+
+    finalizeForm.addEventListener('submit', function(e) {
+        if (orderItems.length === 0) {
+            e.preventDefault();
+            alert("Cannot submit an empty order.");
+            return;
+        }
+        poDataInput.value = JSON.stringify(orderItems);
+    });
+    
+    renderOrder();
+});
+</script>
+{% endblock %}

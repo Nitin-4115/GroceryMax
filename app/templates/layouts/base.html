@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Grocery Store{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+    <style>
+        .dropdown-menu { @apply transition-transform transition-opacity duration-300 ease-out; }
+        .dropdown-menu.hidden { @apply opacity-0 scale-95 transform -translate-y-2; }
+    </style>
+    {% block styles %}{% endblock %}
+</head>
+<body class="bg-slate-100 text-slate-800">
+    <div class="flex h-screen bg-slate-200">
+        <aside class="w-64 bg-sky-800 text-white flex flex-col fixed inset-y-0 left-0 transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-200 ease-in-out z-30" id="sidebar">
+            <div class="flex items-center justify-center h-16 border-b border-sky-700">
+                <a href="{{ url_for('main.index') }}" class="text-2xl font-bold">GroceryMax</a>
+            </div>
+            <nav class="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+                {% if session['role'] == 'admin' %}
+                <a href="{{ url_for('main.index') }}" class="flex items-center space-x-3 px-4 py-2 rounded-md transition-colors duration-200 ease-in-out hover:bg-sky-700">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+                    <span>Dashboard</span>
+                </a>
+                {% endif %}
+                {% if session['role'] != 'admin' %}
+                <a href="{{ url_for('main.new_sale_route') }}" class="flex items-center space-x-3 px-4 py-2 rounded-md transition-colors duration-200 ease-in-out hover:bg-sky-700">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                    <span>New Sale</span>
+                </a>
+                {% endif %}
+                <a href="{{ url_for('main.show_products') }}" class="flex items-center space-x-3 px-4 py-2 rounded-md transition-colors duration-200 ease-in-out hover:bg-sky-700">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+                    <span>View Products</span>
+                </a>
+                <a href="{{ url_for('main.show_customers') }}" class="flex items-center space-x-3 px-4 py-2 rounded-md transition-colors duration-200 ease-in-out hover:bg-sky-700">
+                   <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M15 21a6 6 0 00-9-5.197m0 0A5.975 5.975 0 0112 13a5.975 5.975 0 013 5.197M15 21a6 6 0 00-9-5.197"/></svg>
+                    <span>View Customers</span>
+                </a>
+
+                {% if session['role'] == 'admin' %}
+                    <div>
+                        <h3 class="px-4 pt-4 pb-2 text-xs uppercase text-sky-300 font-semibold">Management</h3>
+                        <a href="{{ url_for('main.show_categories') }}" class="flex items-center space-x-3 px-4 py-2 rounded-md transition-colors duration-200 ease-in-out hover:bg-sky-700">
+                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                            <span>Manage Categories</span>
+                        </a>
+                        <a href="{{ url_for('main.show_suppliers') }}" class="flex items-center space-x-3 px-4 py-2 rounded-md transition-colors duration-200 ease-in-out hover:bg-sky-700">
+                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10l2 2h8a1 1 0 001-1zM3 11h10M16 16l4-4m0 0l-4-4m4 4H10"/></svg>
+                            <span>Manage Suppliers</span>
+                        </a>
+                        <a href="{{ url_for('main.inventory_adjustment_route') }}" class="flex items-center space-x-3 px-4 py-2 rounded-md transition-colors duration-200 ease-in-out hover:bg-sky-700">
+                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.096 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                            <span>Inventory Adjustments</span>
+                        </a>
+                        <a href="{{ url_for('main.show_purchase_orders') }}" class="flex items-center space-x-3 px-4 py-2 rounded-md transition-colors duration-200 ease-in-out hover:bg-sky-700">
+                           <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+                            <span>Purchase Orders</span>
+                        </a>
+                    </div>
+                    <div>
+                        <h3 class="px-4 pt-4 pb-2 text-xs uppercase text-sky-300 font-semibold">Reports</h3>
+                        <a href="{{ url_for('main.sales_history_route') }}" class="flex items-center space-x-3 px-4 py-2 rounded-md transition-colors duration-200 ease-in-out hover:bg-sky-700">
+                           <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                            <span>Sales History</span>
+                        </a>
+                        <a href="{{ url_for('main.low_stock_report_route') }}" class="flex items-center space-x-3 px-4 py-2 rounded-md transition-colors duration-200 ease-in-out hover:bg-sky-700">
+                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/><path d="M12 18a6 6 0 100-12 6 6 0 000 12z"/></svg>
+                            <span>Low Stock Report</span>
+                        </a>
+                    </div>
+                    <div>
+                        <h3 class="px-4 pt-4 pb-2 text-xs uppercase text-sky-300 font-semibold">Admin</h3>
+                        <a href="{{ url_for('main.register_route') }}" class="flex items-center space-x-3 px-4 py-2 rounded-md transition-colors duration-200 ease-in-out hover:bg-sky-700">
+                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
+                            <span>Register New User</span>
+                        </a>
+                        <button type="button" id="wipe-db-modal-btn" class="w-full flex items-center space-x-3 px-4 py-2 rounded-md text-red-300 hover:bg-red-700 hover:text-white transition-colors duration-200 ease-in-out">
+                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                            <span>Wipe Database</span>
+                        </button>
+                    </div>
+                {% else %} {# Cashier-only links #}
+                    <div>
+                        <h3 class="px-4 pt-4 pb-2 text-xs uppercase text-sky-300 font-semibold">Reports</h3>
+                        <a href="{{ url_for('main.sales_history_route') }}" class="flex items-center space-x-3 px-4 py-2 rounded-md transition-colors duration-200 ease-in-out hover:bg-sky-700">
+                           <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                            <span>Sales History</span>
+                        </a>
+                    </div>
+                {% endif %}
+            </nav>
+        </aside>
+
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <header id="main-header" class="bg-white shadow-sm border-b border-slate-200">
+                <div class="flex items-center justify-between h-16 px-4">
+                    <button id="mobile-menu-button" class="text-slate-500 focus:outline-none md:hidden">
+                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
+                    </button>
+                    <div class="flex-grow"></div>
+                    <div class="flex items-center space-x-4">
+                        <div class="relative">
+                            <button id="user-menu-button" class="flex items-center space-x-2 p-2 rounded-md hover:bg-slate-100 transition-colors">
+                                <svg class="h-6 w-6 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                                <span class="hidden sm:inline">{{ session['username'] }}</span>
+                                <svg class="h-5 w-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                            </button>
+                            <div id="user-dropdown" class="dropdown-menu hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-20">
+                                <a href="{{ url_for('main.change_password_route') }}" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 transition-colors">Change Password</a>
+                            </div>
+                        </div>
+                        <a href="{{ url_for('main.logout_route') }}" class="flex items-center space-x-2 p-2 rounded-md hover:bg-slate-100 transition-colors" title="Logout">
+                            <svg class="h-6 w-6 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+                            <span class="hidden sm:inline">Logout</span>
+                        </a>
+                    </div>
+                </div>
+            </header>
+
+            <main id="main-content" class="flex-1 overflow-y-auto bg-slate-100 p-6">
+                <div class="container mx-auto">
+                    {% block content %}{% endblock %}
+                </div>
+            </main>
+
+            <footer id="main-footer" class="bg-slate-200 text-slate-600 text-center text-sm py-4 no-print">
+                 <p>&copy; {{ current_year }} Grocery Store Management System. For Educational Purposes.</p>
+            </footer>
+        </div>
+    </div>
+
+    <div id="form-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-40">
+        <div class="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+            <div class="flex justify-between items-center pb-3 border-b">
+                <h3 class="text-2xl font-bold text-sky-700" id="modal-title">Modal Title</h3>
+                <button id="modal-close-btn" class="text-black close-modal">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <div class="mt-4" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+    <script>
+        function showToast(message, type = 'success') {
+            const backgroundColor = type === 'success'
+                ? 'linear-gradient(to right, #00b09b, #96c93d)'
+                : 'linear-gradient(to right, #ff5f6d, #ffc371)';
+            Toastify({ text: message, duration: 3000, close: true, gravity: "top", position: "right", style: { background: backgroundColor } }).showToast();
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const sidebar = document.getElementById('sidebar');
+            const mobileMenuButton = document.getElementById('mobile-menu-button');
+            const userMenuButton = document.getElementById('user-menu-button');
+            const userDropdown = document.getElementById('user-dropdown');
+
+            if (mobileMenuButton) {
+                mobileMenuButton.addEventListener('click', () => sidebar.classList.toggle('-translate-x-full'));
+            }
+            if (userMenuButton) {
+                userMenuButton.addEventListener('click', () => userDropdown.classList.toggle('hidden'));
+            }
+            document.addEventListener('click', function(event) {
+                 // Close sidebar on outside click (mobile)
+                if (sidebar && mobileMenuButton && !sidebar.contains(event.target) && !mobileMenuButton.contains(event.target) && !sidebar.classList.contains('-translate-x-full')) {
+                    sidebar.classList.add('-translate-x-full');
+                }
+                // Close user dropdown on outside click
+                if (userDropdown && userMenuButton && !userMenuButton.contains(event.target) && !userDropdown.contains(event.target)) {
+                    userDropdown.classList.add('hidden');
+                }
+            });
+
+            // --- Wipe DB Modal Logic ---
+            const wipeDbModalBtn = document.getElementById('wipe-db-modal-btn');
+            const modal = document.getElementById('form-modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalBody = document.getElementById('modal-body');
+
+            function openModal() { modal.classList.remove('hidden'); }
+            function closeModal() { modal.classList.add('hidden'); }
+
+            const modalCloseButton = document.getElementById('modal-close-btn');
+            if (modalCloseButton) {
+                 modalCloseButton.addEventListener('click', closeModal);
+            }
+
+
+            if (wipeDbModalBtn) {
+                wipeDbModalBtn.addEventListener('click', function() {
+                    modalTitle.textContent = 'Confirm Database Wipe';
+                    fetch("{{ url_for('main.wipe_db_form') }}")
+                        .then(response => response.text())
+                        .then(html => {
+                            modalBody.innerHTML = html;
+                            openModal();
+                            const wipeForm = document.getElementById('wipe-db-confirm-form');
+                            if(wipeForm) {
+                                wipeForm.addEventListener('submit', handleWipeDbSubmit);
+                            }
+                        });
+                });
+            }
+
+            function handleWipeDbSubmit(event) {
+                event.preventDefault();
+                const form = event.target;
+                const formData = new FormData(form);
+
+                fetch("{{ url_for('main.wipe_database') }}", {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json().then(data => ({ status: response.status, body: data })))
+                .then(({ status, body }) => {
+                    if (status === 200 && body.success) {
+                        showToast(body.message, 'success');
+                        closeModal();
+                        setTimeout(() => window.location.reload(), 1500);
+                    } else {
+                        showToast(body.message, 'error');
+                    }
+                })
+                .catch(() => showToast('An unexpected network error occurred.', 'error'));
+            }
+        });
+    </script>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

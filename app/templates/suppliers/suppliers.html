@@ -1,0 +1,135 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}{{ super() }} - {{ title }}{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <h1 class="text-3xl font-bold text-sky-700">{{ title }}</h1>
+    <button id="add-supplier-modal-btn" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded shadow transition-colors">
+        Add New Supplier
+    </button>
+</div>
+
+<div class="bg-white shadow-md rounded-lg overflow-x-auto">
+    <table class="min-w-full leading-normal">
+        <thead>
+            <tr class="bg-slate-200 text-left text-slate-600 uppercase text-sm">
+                <th class="px-5 py-3 border-b-2 border-slate-300">ID</th>
+                <th class="px-5 py-3 border-b-2 border-slate-300">Name</th>
+                <th class="px-5 py-3 border-b-2 border-slate-300">Contact</th>
+                <th class="px-5 py-3 border-b-2 border-slate-300">Phone</th>
+                <th class="px-5 py-3 border-b-2 border-slate-300">Email</th>
+                <th class="px-5 py-3 border-b-2 border-slate-300 text-center">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="text-slate-700" id="supplier-table-body">
+            {% for supplier in suppliers %}
+            <tr class="hover:bg-slate-50 border-b border-slate-200" id="supplier-row-{{ supplier.SupplierID }}">
+                <td class="px-5 py-4 text-sm">{{ supplier.SupplierID }}</td>
+                <td class="px-5 py-4 text-sm font-medium">{{ supplier.SupplierName }}</td>
+                <td class="px-5 py-4 text-sm">{{ supplier.ContactName or 'N/A' }}</td>
+                <td class="px-5 py-4 text-sm">{{ supplier.PhoneNumber or 'N/A' }}</td>
+                <td class="px-5 py-4 text-sm">{{ supplier.Email or 'N/A' }}</td>
+                <td class="px-5 py-4 text-center whitespace-nowrap">
+                    <button type="button" class="text-sky-600 hover:text-sky-800 font-medium mr-3 px-2 py-1 rounded hover:bg-sky-100 edit-supplier-btn" data-supplier-id="{{ supplier.SupplierID }}">Edit</button>
+                    <button type="button" class="text-red-600 hover:text-red-800 font-medium px-2 py-1 rounded hover:bg-red-100 delete-supplier-btn" data-supplier-id="{{ supplier.SupplierID }}" data-supplier-name="{{ supplier.SupplierName }}">Delete</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const tableBody = document.getElementById('supplier-table-body');
+    const modal = document.getElementById('form-modal');
+    const modalTitle = document.getElementById('modal-title');
+    const modalBody = document.getElementById('modal-body');
+
+    function openModal() { modal.classList.remove('hidden'); }
+    function closeModal() { modal.classList.add('hidden'); }
+    document.getElementById('modal-close-btn').addEventListener('click', closeModal);
+
+    function refreshTable() {
+        fetch(window.location.href)
+            .then(response => response.text())
+            .then(html => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const newTbody = doc.getElementById('supplier-table-body');
+                if (newTbody) tableBody.innerHTML = newTbody.innerHTML;
+            });
+    }
+
+    function handleFormSubmit(event, supplierId = null) {
+        event.preventDefault();
+        const form = event.target;
+        const url = supplierId ? `/suppliers/edit/${supplierId}` : "{{ url_for('main.add_supplier_route') }}";
+        const formData = new FormData(form);
+
+        fetch(url, { method: 'POST', body: formData })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    closeModal();
+                    refreshTable();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(() => showToast('An unexpected error occurred.', 'error'));
+    }
+
+    document.getElementById('add-supplier-modal-btn').addEventListener('click', function() {
+        modalTitle.textContent = 'Add New Supplier';
+        fetch("{{ url_for('main.add_supplier_form') }}")
+            .then(response => response.text())
+            .then(html => {
+                modalBody.innerHTML = html;
+                openModal();
+                document.getElementById('add-supplier-form').addEventListener('submit', handleFormSubmit);
+            });
+    });
+
+    tableBody.addEventListener('click', function(event) {
+        const editButton = event.target.closest('.edit-supplier-btn');
+        const deleteButton = event.target.closest('.delete-supplier-btn');
+
+        if (editButton) {
+            const supplierId = editButton.dataset.supplierId;
+            modalTitle.textContent = `Edit Supplier (ID: ${supplierId})`;
+            fetch(`/suppliers/edit_form/${supplierId}`)
+                .then(response => response.text())
+                .then(html => {
+                    modalBody.innerHTML = html;
+                    openModal();
+                    document.getElementById('edit-supplier-form').addEventListener('submit', (e) => handleFormSubmit(e, supplierId));
+                });
+        }
+
+        if (deleteButton) {
+            const supplierId = deleteButton.dataset.supplierId;
+            const supplierName = deleteButton.dataset.supplierName;
+            if (confirm(`Are you sure you want to delete supplier: ${supplierName}?`)) {
+                fetch(`/api/suppliers/${supplierId}`, { method: 'DELETE' })
+                .then(response => response.json().then(data => ({ status: response.status, body: data })))
+                .then(({ status, body }) => {
+                    if (status === 200 && body.success) {
+                        showToast(body.message, 'success');
+                        const row = document.getElementById(`supplier-row-${supplierId}`);
+                        if (row) row.remove();
+                    } else {
+                        showToast(body.message, 'error');
+                    }
+                })
+                .catch(() => showToast('An unexpected error occurred.', 'error'));
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

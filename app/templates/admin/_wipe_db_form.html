@@ -1,0 +1,16 @@
+<form id="wipe-db-confirm-form" method="post" class="space-y-6">
+    <div class="p-4 bg-red-100 border-l-4 border-red-500 text-red-700">
+        <h4 class="font-bold">Extreme Danger!</h4>
+        <p>You are about to delete all transactional data (products, sales, customers, etc.) and all non-admin user accounts. This action is irreversible.</p>
+    </div>
+    <div>
+        <label for="password" class="block text-sm font-medium text-slate-700 mb-1">Enter Your Admin Password to Confirm</label>
+        <input type="password" id="password" name="password" required autocomplete="current-password"
+               class="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500 sm:text-sm">
+    </div>
+    <div class="pt-2 flex justify-end">
+        <button type="submit" class="inline-flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-800 transition-colors">
+            Confirm and Wipe Database
+        </button>
+    </div>
+</form>

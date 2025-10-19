@@ -1,0 +1,209 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}{{ super() }} - Product Catalog{% endblock %}
+
+{% block content %}
+<div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+    <h1 class="text-3xl font-bold text-sky-700">{{ title }}</h1>
+    <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+        <div class="flex w-full sm:w-auto">
+            <input type="text" id="search-input" placeholder="Search products instantly..."
+                   class="flex-grow sm:flex-initial px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm">
+        </div>
+        {% if session['role'] == 'admin' %}
+        <button id="add-product-modal-btn" type="button" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-md shadow transition-colors whitespace-nowrap text-center sm:text-left">
+            Add New Product
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<script id="products-data" type="application/json">
+    {{ products|tojson|safe }}
+</script>
+<script id="is-admin-data" type="application/json">
+    {{ (session['role'] == 'admin')|tojson|safe }}
+</script>
+
+<div id="product-table-container">
+    <div class="bg-white shadow-md rounded-lg overflow-x-auto">
+        <table class="min-w-full leading-normal">
+            <thead>
+                <tr class="bg-slate-200 text-left text-slate-600 uppercase text-sm">
+                    <th class="px-5 py-3 border-b-2 border-slate-300">ID</th>
+                    <th class="px-5 py-3 border-b-2 border-slate-300">Name</th>
+                    <th class="px-5 py-3 border-b-2 border-slate-300">Description</th>
+                    <th class="px-5 py-3 border-b-2 border-slate-300">Category</th>
+                    <th class="px-5 py-3 border-b-2 border-slate-300 text-right">Price</th>
+                    <th class="px-5 py-3 border-b-2 border-slate-300 text-right">Stock</th>
+                    {% if session['role'] == 'admin' %}
+                    <th class="px-5 py-3 border-b-2 border-slate-300 text-center">Actions</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody class="text-slate-700" id="product-table-body">
+                <tr><td colspan="7" class="text-center p-8 text-slate-500">Loading products...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let initialProducts = [];
+    let isAdmin = false;
+    const productsDataElement = document.getElementById('products-data');
+    const isAdminDataElement = document.getElementById('is-admin-data');
+
+    if (productsDataElement && productsDataElement.textContent) {
+        try { initialProducts = JSON.parse(productsDataElement.textContent); } catch (e) { console.error("Error parsing products data:", e); }
+    } else { console.error("Products data element not found or empty."); }
+
+    if (isAdminDataElement && isAdminDataElement.textContent) {
+        try { isAdmin = JSON.parse(isAdminDataElement.textContent); } catch (e) { console.error("Error parsing admin status data:", e); }
+    } else { console.error("Admin status data element not found or empty."); }
+
+    const searchInput = document.getElementById('search-input');
+    const tableBody = document.getElementById('product-table-body');
+    const modal = document.getElementById('form-modal');
+    const modalTitle = document.getElementById('modal-title');
+    const modalBody = document.getElementById('modal-body');
+    const addProductBtn = document.getElementById('add-product-modal-btn');
+    const modalCloseButton = document.getElementById('modal-close-btn');
+
+    function openModal() { modal.classList.remove('hidden'); }
+    function closeModal() { modal.classList.add('hidden'); }
+    if (modalCloseButton) { modalCloseButton.addEventListener('click', closeModal); }
+
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsHost = window.location.hostname;
+    const wsPort = window.location.port || (wsProtocol === 'wss:' ? '443' : '80');
+    const wsUri = `${wsProtocol}//${wsHost}:${wsPort}/ws/barcode`;
+    let ws;
+
+    function connectWebSocket() {
+        console.log(`Connecting to WebSocket: ${wsUri}`);
+        ws = new WebSocket(wsUri);
+        ws.onopen = () => { console.log("WebSocket connected (Products Page)."); if(typeof showToast === 'function') showToast("Scanner active.", "success"); };
+        ws.onmessage = handleWebSocketMessage;
+        ws.onclose = () => { console.log("WebSocket closed. Reconnecting..."); if(typeof showToast === 'function') showToast("Scanner disconnected. Retrying...", "error"); setTimeout(connectWebSocket, 5000); };
+        ws.onerror = (err) => { console.error("WebSocket error:", err); ws.close(); };
+    }
+
+    function handleWebSocketMessage(event) {
+        try {
+            const message = JSON.parse(event.data);
+            if (message.type === "barcode" && message.data) {
+                console.log("Received barcode via WebSocket:", message.data);
+                const barcodeField = document.getElementById('barcode');
+                if (!modal.classList.contains('hidden') && barcodeField && document.activeElement === barcodeField) {
+                     barcodeField.value = message.data;
+                     barcodeField.dispatchEvent(new Event('input', { bubbles: true }));
+                     if(typeof showToast === 'function') showToast(`Barcode ${message.data} entered.`, "info");
+                } else {
+                     console.log("Modal not open or barcode field not focused. Ignoring scan for form.");
+                }
+            }
+        } catch (e) { console.error("WebSocket message parse error:", e); }
+    }
+
+    function generateTableRow(product) {
+        let actionsHtml = '';
+        if (isAdmin) {
+            actionsHtml = `
+                <button type="button" class="text-sky-600 hover:text-sky-800 font-medium mr-3 px-2 py-1 rounded hover:bg-sky-100 edit-product-btn" data-product-id="${product.ProductID}">Edit</button>
+                <button type="button" class="text-red-600 hover:text-red-800 font-medium px-2 py-1 rounded hover:bg-red-100 delete-product-btn" data-product-id="${product.ProductID}" data-product-name="${product.ProductName.replace(/"/g, '&quot;')}">Delete</button>
+            `;
+        }
+        const categoryName = (product.Category && product.Category.CategoryName) ? product.Category.CategoryName : 'N/A';
+        return `
+            <tr class="hover:bg-slate-50 border-b border-slate-200" id="product-row-${product.ProductID}">
+                <td class="px-5 py-4 text-sm">${product.ProductID}</td>
+                <td class="px-5 py-4 text-sm font-medium">${product.ProductName}</td>
+                <td class="px-5 py-4 text-xs max-w-xs truncate" title="${product.Description || ''}">${product.Description || ''}</td>
+                <td class="px-5 py-4 text-sm">${categoryName}</td>
+                <td class="px-5 py-4 text-sm text-right">$${parseFloat(product.Price || 0).toFixed(2)}</td>
+                <td class="px-5 py-4 text-sm text-right">${product.StockQuantity || 0}</td>
+                ${isAdmin ? `<td class="px-5 py-4 text-center whitespace-nowrap">${actionsHtml}</td>` : ''}
+            </tr>
+        `;
+    }
+    function renderTable(products) {
+        tableBody.innerHTML = products.length > 0 ? products.map(generateTableRow).join('') : `<tr><td colspan="${isAdmin ? 7 : 6}" class="px-5 py-4 text-center text-slate-500">No products found.</td></tr>`;
+    }
+
+    function fetchAndRenderProducts(query = '') {
+        fetch(`/api/products/search?q=${encodeURIComponent(query)}`)
+            .then(response => response.json())
+            .then(data => { renderTable(data); })
+            .catch(error => { console.error("Error fetching products:", error); if(typeof showToast === 'function') showToast("Failed to search products.", "error"); });
+    }
+
+    searchInput.addEventListener('keyup', () => fetchAndRenderProducts(searchInput.value));
+    tableBody.addEventListener('click', function(event) {
+        const deleteButton = event.target.closest('.delete-product-btn');
+        const editButton = event.target.closest('.edit-product-btn');
+        if (deleteButton) { handleDelete(deleteButton); }
+        if (editButton) { handleEdit(editButton); }
+    });
+
+    if (addProductBtn) {
+        addProductBtn.addEventListener('click', function() {
+            modalTitle.textContent = 'Add New Product';
+            fetch("{{ url_for('main.add_product_form') }}")
+                .then(response => response.text())
+                .then(html => {
+                    modalBody.innerHTML = html; openModal();
+                    const barcodeField = document.getElementById('barcode');
+                    if (barcodeField) { setTimeout(() => barcodeField.focus(), 100); }
+                    const form = document.getElementById('add-product-form');
+                    if (form) { form.addEventListener('submit', handleFormSubmit); }
+                    else { console.error("Add product form not found in modal."); }
+                })
+                .catch(error => { console.error("Error fetching add product form:", error); if(typeof showToast === 'function') showToast("Could not load add product form.", "error"); });
+        });
+    }
+
+    function handleEdit(button) {
+        const productId = button.dataset.productId;
+        modalTitle.textContent = `Edit Product (ID: ${productId})`;
+        fetch(`/products/edit_form/${productId}`)
+            .then(response => response.text())
+            .then(html => {
+                modalBody.innerHTML = html; openModal();
+                const barcodeField = document.getElementById('barcode');
+                if (barcodeField) { setTimeout(() => barcodeField.focus(), 100); }
+                const form = document.getElementById('edit-product-form');
+                 if (form) { form.addEventListener('submit', (e) => handleFormSubmit(e, productId)); }
+                 else { console.error("Edit product form not found in modal."); }
+            })
+             .catch(error => { console.error("Error fetching edit product form:", error); if(typeof showToast === 'function') showToast("Could not load edit product form.", "error"); });
+    }
+    function handleFormSubmit(event, productId = null) {
+        event.preventDefault(); const form = event.target; const url = productId ? `/products/edit/${productId}` : "{{ url_for('main.add_product_route') }}"; const formData = new FormData(form);
+        fetch(url, { method: 'POST', body: formData })
+            .then(response => response.json())
+            .then(data => { if(typeof showToast !== 'function') return; if (data.success) { showToast(data.message, 'success'); closeModal(); fetchAndRenderProducts(searchInput.value); } else { showToast('Error: ' + data.message, 'error'); } })
+            .catch(() => { if(typeof showToast === 'function') showToast('An unexpected network error occurred.', 'error'); });
+    }
+    function handleDelete(button) {
+        const productId = button.dataset.productId; const productName = button.dataset.productName;
+        if (confirm(`Are you sure you want to delete product: ${productName}?`)) {
+            fetch(`/api/products/${productId}`, { method: 'DELETE' })
+            .then(response => response.json().then(data => ({ status: response.status, body: data })))
+            .then(({ status, body }) => { if(typeof showToast !== 'function') return; if (status === 200 && body.success) { showToast(body.message, 'success'); const row = document.getElementById(`product-row-${productId}`); if (row) { row.style.transition = 'opacity 0.5s ease'; row.style.opacity = '0'; setTimeout(() => row.remove(), 500); } } else { showToast(body.message || 'Failed to delete product.', 'error'); } })
+            .catch(() => { if(typeof showToast === 'function') showToast('An unexpected network error occurred.', 'error'); });
+        }
+    }
+
+
+    if (productsDataElement && productsDataElement.textContent) { renderTable(initialProducts); }
+    else { tableBody.innerHTML = `<tr><td colspan="${isAdmin ? 7 : 6}" class="px-5 py-4 text-center text-red-500">Error: Could not load initial product data.</td></tr>`; }
+    connectWebSocket();
+
+});
+</script>
+{% endblock %}

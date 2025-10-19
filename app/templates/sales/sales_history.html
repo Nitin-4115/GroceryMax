@@ -1,0 +1,93 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}{{ super() }} - {{ title }}{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <h1 class="text-3xl font-bold text-sky-700">{{ title }}</h1>
+</div>
+
+<div class="bg-white p-4 rounded-lg shadow-md mb-6">
+    <form method="get" action="{{ url_for('main.sales_history_route') }}" class="flex flex-col sm:flex-row items-center gap-4">
+        <div class="flex-1">
+            <label for="start_date" class="block text-sm font-medium text-slate-700">Start Date</label>
+            <input type="date" id="start_date" name="start_date" value="{{ request.args.get('start_date', '') }}"
+                   class="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500">
+        </div>
+        <div class="flex-1">
+            <label for="end_date" class="block text-sm font-medium text-slate-700">End Date</label>
+            <input type="date" id="end_date" name="end_date" value="{{ request.args.get('end_date', '') }}"
+                   class="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500">
+        </div>
+        <div class="flex gap-2 pt-6">
+            <button type="submit" class="bg-sky-600 hover:bg-sky-700 text-white font-semibold py-2 px-4 rounded-md shadow">
+                Filter
+            </button>
+            <a href="{{ url_for('main.sales_history_route') }}" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-2 px-4 rounded-md shadow">
+                Clear
+            </a>
+            {% if session['role'] == 'admin' %}
+            <a href="{{ url_for('main.export_sales_csv', start_date=request.args.get('start_date', ''), end_date=request.args.get('end_date', '')) }}" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-md shadow">
+                Export to CSV
+            </a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category_flash, message in messages %}
+            <div class="p-4 mb-4 text-sm rounded-lg
+                        {% if category_flash == 'error' %}bg-red-100 text-red-700 border border-red-300
+                        {% elif category_flash == 'success' %}bg-green-100 text-green-700 border border-green-300
+                        {% else %}bg-blue-100 text-blue-700 border border-blue-300{% endif %}" role="alert">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+{% if sales_records %}
+<div class="bg-white shadow-md rounded-lg overflow-x-auto">
+    <table class="min-w-full leading-normal">
+        <thead>
+            <tr class="bg-slate-200 text-left text-slate-600 uppercase text-sm">
+                <th class="px-5 py-3 border-b-2 border-slate-300">Sale ID</th>
+                <th class="px-5 py-3 border-b-2 border-slate-300">Date</th>
+                <th class="px-5 py-3 border-b-2 border-slate-300">Customer</th>
+                <th class="px-5 py-3 border-b-2 border-slate-300 text-right">Total Amount</th>
+                <th class="px-5 py-3 border-b-2 border-slate-300">Payment Method</th>
+                <th class="px-5 py-3 border-b-2 border-slate-300 text-center">Details</th>
+            </tr>
+        </thead>
+        <tbody class="text-slate-700">
+            {% for sale in sales_records %}
+            <tr class="hover:bg-slate-50 border-b border-slate-200">
+                <td class="px-5 py-4 text-sm">{{ sale.SaleID }}</td>
+                <td class="px-5 py-4 text-sm">{{ sale.SaleDate.strftime('%Y-%m-%d %H:%M:%S') if sale.SaleDate else 'N/A' }}</td>
+                <td class="px-5 py-4 text-sm">
+                    {% if sale.Customer %}
+                        {{ sale.Customer.FirstName }} {{ sale.Customer.LastName or '' }}
+                        <span class="text-xs text-slate-500 block">{{ sale.Customer.Email or ('(ID: ' + sale.CustomerID|string + ')') }}</span>
+                    {% else %}
+                        <span class="italic text-slate-500">Guest Sale</span>
+                    {% endif %}
+                </td>
+                <td class="px-5 py-4 text-sm text-right font-semibold">${{ "%.2f"|format(sale.TotalAmount) if sale.TotalAmount is not none else '0.00' }}</td>
+                <td class="px-5 py-4 text-sm">{{ sale.PaymentMethod or 'N/A' }}</td>
+                <td class="px-5 py-4 text-sm text-center">
+                    <a href="{{ url_for('main.sale_details_route', sale_id=sale.SaleID) }}" class="text-sky-600 hover:text-sky-800 px-2 py-1 rounded hover:bg-sky-100">View Items</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="bg-white p-8 rounded-lg shadow text-center">
+    <p class="text-lg text-slate-500">No sales records found for the selected period.</p>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}{{ super() }} - PO #{{ po.PO_ID }}{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <a href="{{ url_for('main.show_purchase_orders') }}" class="text-sky-600 hover:text-sky-800">&larr; Back to Purchase Orders</a>
+    <div class="flex justify-between items-center mt-2">
+        <h1 class="text-3xl font-bold text-sky-700">Details for Purchase Order #{{ po.PO_ID }}</h1>
+        {% if po.Status == 'Pending' %}
+        <form method="POST" onsubmit="return confirm('Are you sure you want to mark this order as completed? This will update stock levels and cannot be undone.')">
+            <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded shadow">
+                Receive Shipment & Complete Order
+            </button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+<div class="bg-white p-6 rounded-lg shadow-lg mb-6">
+    <h2 class="text-xl font-semibold text-slate-700 mb-4">Order Summary</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+        <div><strong>Supplier:</strong> {{ po.Supplier.SupplierName }}</div>
+        <div><strong>Order Date:</strong> {{ po.OrderDate.strftime('%Y-%m-%d') }}</div>
+        <div><strong>Status:</strong> 
+            <span class="px-2 py-1 font-semibold leading-tight rounded-full
+                        {% if po.Status == 'Completed' %} bg-green-100 text-green-700
+                        {% else %} bg-yellow-100 text-yellow-700 {% endif %}">
+                {{ po.Status }}
+            </span>
+        </div>
+    </div>
+</div>
+
+<div class="bg-white shadow-md rounded-lg overflow-x-auto">
+    <h2 class="text-xl font-semibold text-slate-700 p-6 border-b">Items in this Order</h2>
+    <table class="min-w-full leading-normal">
+        <thead>
+            <tr class="bg-slate-200 text-left text-slate-600 uppercase text-sm">
+                <th class="px-5 py-3 border-b-2 border-slate-300">Product Name</th>
+                <th class="px-5 py-3 border-b-2 border-slate-300 text-center">Quantity Ordered</th>
+            </tr>
+        </thead>
+        <tbody class="text-slate-700">
+            {% for detail in po.Details %}
+            <tr class="border-b border-slate-200">
+                <td class="px-5 py-4 text-sm font-medium">{{ detail.Product.ProductName }}</td>
+                <td class="px-5 py-4 text-sm text-center">{{ detail.Quantity }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

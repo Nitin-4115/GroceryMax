@@ -1,0 +1,45 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}{{ super() }} - Purchase Orders{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <h1 class="text-3xl font-bold text-sky-700">Purchase Orders</h1>
+    <a href="{{ url_for('main.new_purchase_order_route') }}" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded shadow">
+        Create New PO
+    </a>
+</div>
+
+<div class="bg-white shadow-md rounded-lg overflow-x-auto">
+    <table class="min-w-full leading-normal">
+        <thead>
+            <tr class="bg-slate-200 text-left text-slate-600 uppercase text-sm">
+                <th class="px-5 py-3 border-b-2 border-slate-300">PO ID</th>
+                <th class="px-5 py-3 border-b-2 border-slate-300">Supplier</th>
+                <th class="px-5 py-3 border-b-2 border-slate-300">Order Date</th>
+                <th class="px-5 py-3 border-b-2 border-slate-300">Status</th>
+                <th class="px-5 py-3 border-b-2 border-slate-300 text-center">Details</th>
+            </tr>
+        </thead>
+        <tbody class="text-slate-700">
+            {% for po in purchase_orders %}
+            <tr class="hover:bg-slate-50 border-b border-slate-200">
+                <td class="px-5 py-4 text-sm font-medium">#{{ po.PO_ID }}</td>
+                <td class="px-5 py-4 text-sm">{{ po.Supplier.SupplierName }}</td>
+                <td class="px-5 py-4 text-sm">{{ po.OrderDate.strftime('%Y-%m-%d') }}</td>
+                <td class="px-5 py-4 text-sm">
+                    <span class="px-2 py-1 font-semibold leading-tight rounded-full
+                                {% if po.Status == 'Completed' %} bg-green-100 text-green-700
+                                {% else %} bg-yellow-100 text-yellow-700 {% endif %}">
+                        {{ po.Status }}
+                    </span>
+                </td>
+                <td class="px-5 py-4 text-sm text-center">
+                    <a href="{{ url_for('main.purchase_order_details_route', po_id=po.PO_ID) }}" class="text-sky-600 hover:text-sky-800">View Details</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

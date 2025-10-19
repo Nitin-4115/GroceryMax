@@ -1,0 +1,137 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}{{ super() }} - {{ title }}{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <h1 class="text-3xl font-bold text-sky-700">{{ title }}</h1>
+    <button id="add-category-modal-btn" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded shadow transition-colors">
+        Add New Category
+    </button>
+</div>
+
+<div class="bg-white shadow-md rounded-lg overflow-x-auto">
+    <table class="min-w-full leading-normal">
+        <thead>
+            <tr class="bg-slate-200 text-left text-slate-600 uppercase text-sm">
+                <th class="px-5 py-3 border-b-2 border-slate-300">ID</th>
+                <th class="px-5 py-3 border-b-2 border-slate-300">Name</th>
+                <th class="px-5 py-3 border-b-2 border-slate-300">Description</th>
+                <th class="px-5 py-3 border-b-2 border-slate-300 text-center">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="text-slate-700" id="category-table-body">
+            {% for category in categories %}
+            <tr class="hover:bg-slate-50 border-b border-slate-200" id="category-row-{{ category.CategoryID }}">
+                <td class="px-5 py-4 text-sm">{{ category.CategoryID }}</td>
+                <td class="px-5 py-4 text-sm font-medium">{{ category.CategoryName }}</td>
+                <td class="px-5 py-4 text-xs max-w-md truncate" title="{{ category.Description or '' }}">{{ category.Description or 'N/A' }}</td>
+                <td class="px-5 py-4 text-center whitespace-nowrap">
+                    <button type="button" class="text-sky-600 hover:text-sky-800 font-medium mr-3 px-2 py-1 rounded hover:bg-sky-100 edit-category-btn" data-category-id="{{ category.CategoryID }}">Edit</button>
+                    <button type="button" class="text-red-600 hover:text-red-800 font-medium px-2 py-1 rounded hover:bg-red-100 delete-category-btn" data-category-id="{{ category.CategoryID }}" data-category-name="{{ category.CategoryName|replace('\"', '&quot;') }}">Delete</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const tableBody = document.getElementById('category-table-body');
+    const modal = document.getElementById('form-modal');
+    const modalTitle = document.getElementById('modal-title');
+    const modalBody = document.getElementById('modal-body');
+
+    function openModal() { modal.classList.remove('hidden'); }
+    function closeModal() { modal.classList.add('hidden'); }
+    document.getElementById('modal-close-btn').addEventListener('click', closeModal);
+
+    // Refresh table by re-fetching the page content
+    function refreshTable() {
+        fetch(window.location.href)
+            .then(response => response.text())
+            .then(html => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const newTbody = doc.getElementById('category-table-body');
+                if (newTbody) {
+                    tableBody.innerHTML = newTbody.innerHTML;
+                }
+            });
+    }
+
+    // --- Modal and Form Handling ---
+    function handleFormSubmit(event, categoryId = null) {
+        event.preventDefault();
+        const form = event.target;
+        const url = categoryId ? `/categories/edit/${categoryId}` : "{{ url_for('main.add_category_route') }}";
+        const formData = new FormData(form);
+
+        fetch(url, { method: 'POST', body: formData })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    closeModal();
+                    refreshTable();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(() => showToast('An unexpected error occurred.', 'error'));
+    }
+
+    // Add Category Modal
+    document.getElementById('add-category-modal-btn').addEventListener('click', function() {
+        modalTitle.textContent = 'Add New Category';
+        fetch("{{ url_for('main.add_category_form') }}")
+            .then(response => response.text())
+            .then(html => {
+                modalBody.innerHTML = html;
+                openModal();
+                document.getElementById('add-category-form').addEventListener('submit', handleFormSubmit);
+            });
+    });
+
+    // Event Delegation for action buttons
+    tableBody.addEventListener('click', function(event) {
+        const editButton = event.target.closest('.edit-category-btn');
+        const deleteButton = event.target.closest('.delete-category-btn');
+
+        if (editButton) {
+            const categoryId = editButton.dataset.categoryId;
+            modalTitle.textContent = `Edit Category (ID: ${categoryId})`;
+            fetch(`/categories/edit_form/${categoryId}`)
+                .then(response => response.text())
+                .then(html => {
+                    modalBody.innerHTML = html;
+                    openModal();
+                    document.getElementById('edit-category-form').addEventListener('submit', (e) => handleFormSubmit(e, categoryId));
+                });
+        }
+
+        if (deleteButton) {
+            const categoryId = deleteButton.dataset.categoryId;
+            const categoryName = deleteButton.dataset.categoryName;
+            if (confirm(`Are you sure you want to delete category: ${categoryName}?`)) {
+                fetch(`/api/categories/${categoryId}`, { method: 'DELETE' })
+                .then(response => response.json().then(data => ({ status: response.status, body: data })))
+                .then(({ status, body }) => {
+                    if (status === 200 && body.success) {
+                        showToast(body.message, 'success');
+                        const row = document.getElementById(`category-row-${categoryId}`);
+                        if (row) row.remove();
+                    } else {
+                        showToast(body.message, 'error');
+                    }
+                })
+                .catch(() => showToast('An unexpected error occurred.', 'error'));
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,144 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}{{ super() }} - {{ title }}{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <h1 class="text-3xl font-bold text-sky-700">{{ title }}</h1>
+    {% if session['role'] == 'admin' %}
+    <button id="add-customer-modal-btn" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded shadow transition-colors">
+        Add New Customer
+    </button>
+    {% endif %}
+</div>
+
+<div class="bg-white shadow-md rounded-lg overflow-x-auto">
+    <table class="min-w-full leading-normal">
+        <thead>
+            <tr class="bg-slate-200 text-left text-slate-600 uppercase text-sm">
+                <th class="px-5 py-3 border-b-2 border-slate-300">ID</th>
+                <th class="px-5 py-3 border-b-2 border-slate-300">Full Name</th>
+                <th class="px-5 py-3 border-b-2 border-slate-300">Email</th>
+                <th class="px-5 py-3 border-b-2 border-slate-300">Phone</th>
+                <th class="px-5 py-3 border-b-2 border-slate-300">Registered</th>
+                {% if session['role'] == 'admin' %}
+                <th class="px-5 py-3 border-b-2 border-slate-300 text-center">Actions</th>
+                {% endif %}
+            </tr>
+        </thead>
+        <tbody class="text-slate-700" id="customer-table-body">
+            {% for customer in customers %}
+            <tr class="hover:bg-slate-50 border-b border-slate-200" id="customer-row-{{ customer.CustomerID }}">
+                <td class="px-5 py-4 text-sm">{{ customer.CustomerID }}</td>
+                <td class="px-5 py-4 text-sm font-medium">{{ customer.FirstName }} {{ customer.LastName or '' }}</td>
+                <td class="px-5 py-4 text-sm">{{ customer.Email or 'N/A' }}</td>
+                <td class="px-5 py-4 text-sm">{{ customer.PhoneNumber or 'N/A' }}</td>
+                <td class="px-5 py-4 text-sm">{{ customer.RegistrationDate.strftime('%Y-%m-%d') if customer.RegistrationDate else 'N/A' }}</td>
+                {% if session['role'] == 'admin' %}
+                <td class="px-5 py-4 text-center whitespace-nowrap">
+                    <a href="{{ url_for('main.customer_history_route', customer_id=customer.CustomerID) }}" class="text-green-600 hover:text-green-800 font-medium mr-3">History</a>
+                    <button type="button" class="text-sky-600 hover:text-sky-800 font-medium mr-3 px-2 py-1 rounded hover:bg-sky-100 edit-customer-btn" data-customer-id="{{ customer.CustomerID }}">Edit</button>
+                    <button type="button" class="text-red-600 hover:text-red-800 font-medium px-2 py-1 rounded hover:bg-red-100 delete-customer-btn" data-customer-id="{{ customer.CustomerID }}" data-customer-name="{{ (customer.FirstName + ' ' + (customer.LastName or ''))|trim }}">Delete</button>
+                </td>
+                {% endif %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const tableBody = document.getElementById('customer-table-body');
+    const modal = document.getElementById('form-modal');
+    const modalTitle = document.getElementById('modal-title');
+    const modalBody = document.getElementById('modal-body');
+
+    function openModal() { modal.classList.remove('hidden'); }
+    function closeModal() { modal.classList.add('hidden'); }
+    document.getElementById('modal-close-btn').addEventListener('click', closeModal);
+
+    function refreshTable() {
+        fetch(window.location.href)
+            .then(response => response.text())
+            .then(html => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const newTbody = doc.getElementById('customer-table-body');
+                if (newTbody) tableBody.innerHTML = newTbody.innerHTML;
+            });
+    }
+
+    function handleFormSubmit(event, customerId = null) {
+        event.preventDefault();
+        const form = event.target;
+        const url = customerId ? `/customers/edit/${customerId}` : "{{ url_for('main.add_customer_route') }}";
+        const formData = new FormData(form);
+
+        fetch(url, { method: 'POST', body: formData })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    closeModal();
+                    refreshTable();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(() => showToast('An unexpected error occurred.', 'error'));
+    }
+
+    if (document.getElementById('add-customer-modal-btn')) {
+        document.getElementById('add-customer-modal-btn').addEventListener('click', function() {
+            modalTitle.textContent = 'Add New Customer';
+            fetch("{{ url_for('main.add_customer_form') }}")
+                .then(response => response.text())
+                .then(html => {
+                    modalBody.innerHTML = html;
+                    openModal();
+                    document.getElementById('add-customer-form').addEventListener('submit', handleFormSubmit);
+                });
+        });
+    }
+
+    tableBody.addEventListener('click', function(event) {
+        const editButton = event.target.closest('.edit-customer-btn');
+        const deleteButton = event.target.closest('.delete-customer-btn');
+
+        if (editButton) {
+            const customerId = editButton.dataset.customerId;
+            modalTitle.textContent = `Edit Customer (ID: ${customerId})`;
+            fetch(`/customers/edit_form/${customerId}`)
+                .then(response => response.text())
+                .then(html => {
+                    modalBody.innerHTML = html;
+                    openModal();
+                    document.getElementById('edit-customer-form').addEventListener('submit', (e) => handleFormSubmit(e, customerId));
+                });
+        }
+
+        if (deleteButton) {
+            const customerId = deleteButton.dataset.customerId;
+            const customerName = deleteButton.dataset.customerName;
+            if (confirm(`Are you sure you want to delete customer: ${customerName}?`)) {
+                fetch(`/api/customers/${customerId}`, { method: 'DELETE' })
+                .then(response => response.json().then(data => ({ status: response.status, body: data })))
+                .then(({ status, body }) => {
+                    if (status === 200 && body.success) {
+                        showToast(body.message, 'success');
+                        const row = document.getElementById(`customer-row-${customerId}`);
+                        if (row) row.remove();
+                    } else {
+                        showToast(body.message, 'error');
+                    }
+                })
+                .catch(() => showToast('An unexpected error occurred.', 'error'));
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

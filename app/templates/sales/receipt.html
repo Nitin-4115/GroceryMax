@@ -1,0 +1,114 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}{{ super() }} - {{ title }}{% endblock %}
+
+{% block styles %}
+<style>
+    @media print {
+        body {
+            -webkit-print-color-adjust: exact;
+            color-adjust: exact;
+            background-color: white !important; /* Ensure white background for print */
+            padding: 0;
+            margin: 0;
+        }
+        /* Hide sidebar, top header, and footer when printing */
+        aside, header#main-header, footer#main-footer, .no-print {
+            display: none !important;
+        }
+        /* Make the main content area take full width and remove padding */
+        main#main-content {
+            width: 100% !important;
+            height: auto !important;
+            overflow: visible !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+         /* Style the receipt container specifically for print */
+        .receipt-container {
+            box-shadow: none !important;
+            border: 1px solid #ccc !important;
+            max-width: 90% !important; /* Adjust width as needed */
+            margin: 20px auto !important; /* Center with some margin */
+            padding: 20px !important;
+            background-color: white !important; /* Ensure white background */
+        }
+        /* Ensure table content is visible and styled lightly */
+        table, thead, tbody, tr, th, td {
+            visibility: visible !important;
+            border-color: #eee !important;
+        }
+        th {
+            background-color: #f8f8f8 !important;
+        }
+        /* Ensure text colors print correctly */
+        p, h1, h2, h3, h4, strong, span, div, td, th {
+            color: black !important;
+        }
+    }
+</style>
+{% endblock %}
+
+
+{% block content %}
+<div class="flex justify-between items-center mb-4 no-print">
+    <h1 class="text-3xl font-bold text-sky-700">{{ title }}</h1>
+    <div>
+        <a href="{{ url_for('main.new_sale_route') }}" class="text-sky-600 hover:text-sky-800 mr-4">New Sale</a>
+        <button onclick="window.print()" class="bg-sky-600 hover:bg-sky-700 text-white font-semibold py-2 px-4 rounded shadow">
+            Print Receipt
+        </button>
+    </div>
+</div>
+
+<div class="bg-white p-8 rounded-lg shadow-lg max-w-md mx-auto receipt-container">
+    <div class="text-center mb-8">
+        <h2 class="text-2xl font-bold">GroceryMax</h2>
+        <p class="text-slate-500">Thank you for your purchase!</p>
+    </div>
+
+    <div class="border-b border-dashed pb-4 mb-4 text-sm">
+        <p><strong>Sale ID:</strong> {{ sale.SaleID }}</p>
+        <p><strong>Date:</strong> {{ sale.SaleDate.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+        {% if sale.Customer %}
+            <p><strong>Customer:</strong> {{ sale.Customer.FirstName }} {{ sale.Customer.LastName or '' }}</p>
+        {% else %}
+            <p><strong>Customer:</strong> Guest</p>
+        {% endif %}
+    </div>
+
+    <table class="w-full text-sm mb-4">
+        <thead>
+            <tr class="border-b">
+                <th class="py-2 text-left font-semibold">Item</th>
+                <th class="py-2 text-center font-semibold">Qty</th>
+                <th class="py-2 text-right font-semibold">Price</th>
+                <th class="py-2 text-right font-semibold">Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in sale.SaleDetails %}
+            <tr class="border-b border-dashed">
+                <td class="py-2">{{ item.Product.ProductName }}</td>
+                <td class="py-2 text-center">{{ item.Quantity }}</td>
+                <td class="py-2 text-right">${{ "%.2f"|format(item.UnitPrice) }}</td>
+                <td class="py-2 text-right">${{ "%.2f"|format(item.TotalPrice) }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="4" class="py-4 text-center text-slate-500 italic">No items found for this sale.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="mt-6 text-right">
+        <p class="text-lg font-bold">Total: ${{ "%.2f"|format(sale.TotalAmount) }}</p>
+        <p class="text-sm">Paid with: {{ sale.PaymentMethod }}</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {# Add specific scripts for this page if needed #}
+{% endblock %}
