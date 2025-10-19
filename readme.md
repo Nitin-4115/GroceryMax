@@ -124,8 +124,8 @@ python seed.py
 
 **Default Admin Login**
 ```
-Username: <username>
-Password: <a-very-strong-password>4115
+Username: admin
+Password: admin123
 ```
 
 ⚠️ Change this password immediately after first login.

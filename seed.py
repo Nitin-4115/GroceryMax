@@ -13,8 +13,8 @@ def seed_data():
     # --- Create Admin User ---
     if User.query.count() == 0:
         print("No users found. Creating default admin user...")
-        admin = User(Username='<username>', Role='admin')
-        admin.set_password('<a-very-strong-password>') # Set a default password
+        admin = User(Username='admin', Role='admin')
+        admin.set_password('admin123') # Set a default password
         db.session.add(admin)
         print("Admin user created with username: 'admin' and password: '4115'")
     else:
