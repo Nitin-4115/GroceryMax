@@ -1,4 +1,4 @@
-# 🛒 GroceryMax: Grocery Store Management System
+# 🛒 GroceryMax: A Web-Based Grocery Inventory and Point-of-Sale Management System
 
 ## 📘 Description
 
